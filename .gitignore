@@ -6,6 +6,8 @@ venv/
 *.pdf
 *.pptx
 !pptx/*.pptx
+*.htm
+*.html
 .DS_Store
 Thumbs.db
 .claude/

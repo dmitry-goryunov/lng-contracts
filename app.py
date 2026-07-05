@@ -1,6 +1,8 @@
+import html
 import re
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -12,16 +14,75 @@ COMPARISONS = {
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "cheniere_sabine_pass_spa_standalone_economic_terms.md",
 }
 
-RAG_COLORS = {
-    "RED": "#f8d7da",
-    "AMBER": "#fff3cd",
-    "GREEN": "#d4edda",
-    "NO RAG": "#e2e3e5",
+COMPARISON_BLURBS = {
+    "Driftwood LNG — Vitol / Gunvor / Shell": (
+        "Vitol, Gunvor, Shell SPA1 (JKM) & SPA2 (TTF) — merged, corrected economic-terms comparison."
+    ),
+    "Cheniere Sabine Pass — BG / GNF / GAIL / Total": (
+        "BG, Gas Natural Fenosa, GAIL, Total — standalone economic-term comparison and valuation fields."
+    ),
 }
+
+# Palette lifted from the source decks (navy headers, pastel RAG pills, zebra rows).
+NAVY = "#17324D"
+SLATE = "#475569"
+BODY = "#1E293B"
+MUTED = "#8A94A3"
+ACCENT_BLUE = "#2B5F8E"
+ROW_ALT = "#F7F9FC"
+BORDER = "#E5E9F0"
+
+RAG_TEXT = {"RED": "#B3261E", "AMBER": "#B36B00", "GREEN": "#1A7F37", "NO RAG": "#667085"}
+RAG_BG = {"RED": "#F8D8D5", "AMBER": "#FFF0D5", "GREEN": "#DDEFE2", "NO RAG": "#E2E5EA"}
 
 SLIDE_RE = re.compile(r"^## Slide (\d+): (.+)$", re.MULTILINE)
 TABLE_LINE_RE = re.compile(r"^\|.*\|$")
 TABLE_SEP_RE = re.compile(r"^\|?\s*:?-{2,}.*-{2,}\s*\|?$")
+
+CSS = f"""
+<style>
+h1, h2, h3 {{ color: {NAVY}; }}
+.lng-hero-title {{
+    color: {NAVY}; font-weight: 800; font-size: 2.6rem; line-height: 1.15; margin-bottom: 0.2rem;
+}}
+.lng-hero-subtitle {{ color: {SLATE}; font-size: 1.05rem; margin-bottom: 1.2rem; }}
+.lng-slide-title {{
+    color: {NAVY}; font-weight: 700; font-size: 1.5rem; margin-top: 1.6rem; margin-bottom: 0.4rem;
+}}
+.lng-footer {{ color: {MUTED}; font-size: 0.78rem; margin-top: 2.5rem; }}
+.rag-pill {{
+    display: inline-block; padding: 2px 12px; border-radius: 999px;
+    font-weight: 700; font-size: 0.82rem; white-space: nowrap;
+}}
+.lng-table {{ width: 100%; border-collapse: collapse; margin: 0.6rem 0 1.1rem 0; font-size: 0.92rem; }}
+.lng-table th {{
+    background: {NAVY}; color: #FFFFFF; text-align: left; font-weight: 700;
+    padding: 8px 12px; border: 1px solid {NAVY};
+}}
+.lng-table td {{ padding: 8px 12px; border-bottom: 1px solid {BORDER}; color: {BODY}; vertical-align: top; }}
+.lng-table tr:nth-child(even) td {{ background: {ROW_ALT}; }}
+.lng-card {{
+    background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 10px;
+    padding: 1.1rem 1.3rem; box-shadow: 0 1px 3px rgba(23,50,77,0.08);
+}}
+.lng-card h4 {{ color: {NAVY}; margin-top: 0; }}
+</style>
+"""
+
+
+def rag_key(value: str):
+    v = str(value).strip().upper()
+    return v if v in RAG_TEXT else None
+
+
+def rag_pill_html(value: str) -> str:
+    key = rag_key(value)
+    if key is None:
+        return html.escape(str(value))
+    return (
+        f'<span class="rag-pill" style="background:{RAG_BG[key]};color:{RAG_TEXT[key]};">'
+        f"{html.escape(key)}</span>"
+    )
 
 
 @st.cache_data
@@ -78,16 +139,32 @@ def md_table_to_df(block_text: str):
     return pd.DataFrame(data, columns=header)
 
 
-def style_rag(df: pd.DataFrame):
+def render_table_html(df: pd.DataFrame):
     rag_cols = [c for c in df.columns if c.strip().upper() == "RAG"]
-    if not rag_cols:
-        return df
-    def color(val):
-        val = str(val).strip().upper()
-        return f"background-color: {RAG_COLORS[val]}" if val in RAG_COLORS else ""
-    styler = df.style
-    apply_fn = styler.map if hasattr(styler, "map") else styler.applymap
-    return apply_fn(color, subset=rag_cols)
+    parts = ['<table class="lng-table"><thead><tr>']
+    for col in df.columns:
+        parts.append(f"<th>{html.escape(str(col))}</th>")
+    parts.append("</tr></thead><tbody>")
+    for _, row in df.iterrows():
+        parts.append("<tr>")
+        for col in df.columns:
+            val = row[col]
+            cell = rag_pill_html(val) if col in rag_cols else html.escape(str(val)).replace("\n", "<br>")
+            parts.append(f"<td>{cell}</td>")
+        parts.append("</tr>")
+    parts.append("</tbody></table>")
+    return "".join(parts)
+
+
+def render_text_block(text: str):
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        if rag_key(para) is not None:
+            st.markdown(rag_pill_html(para), unsafe_allow_html=True)
+        else:
+            st.markdown(para)
 
 
 def render_body(body: str):
@@ -95,17 +172,23 @@ def render_body(body: str):
         if is_table:
             df = md_table_to_df(block_text)
             if df is not None:
-                st.dataframe(style_rag(df), use_container_width=True, hide_index=True)
+                st.markdown(render_table_html(df), unsafe_allow_html=True)
                 continue
         if block_text.strip():
-            st.markdown(block_text)
+            render_text_block(block_text)
 
 
 def count_rag(text: str):
-    return {
-        label: len(re.findall(rf"\b{re.escape(label)}\b", text))
-        for label in RAG_COLORS
-    }
+    return {label: len(re.findall(rf"\b{re.escape(label)}\b", text)) for label in RAG_TEXT}
+
+
+def render_footer(doc_name: str):
+    st.markdown(
+        f'<div class="lng-footer">{html.escape(doc_name)} &nbsp;·&nbsp; '
+        "Economic comparison only — not a legal blackline. Redacted terms "
+        "(<code>[***]</code>) are never inferred.</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_comparison_page(label: str, filename: str):
@@ -116,9 +199,9 @@ def render_comparison_page(label: str, filename: str):
     slide_titles = [f"Slide {s['num']}: {s['title']}" for s in slides]
     jump = st.sidebar.selectbox("Jump to slide", ["(show all)"] + slide_titles, key=f"jump_{filename}")
 
-    st.title(label)
+    st.markdown(f'<div class="lng-hero-title">{html.escape(label)}</div>', unsafe_allow_html=True)
     if intro:
-        st.markdown(intro)
+        render_text_block(intro)
 
     filtered = slides
     if search:
@@ -134,36 +217,71 @@ def render_comparison_page(label: str, filename: str):
         return
 
     for s in filtered:
-        st.subheader(f"Slide {s['num']}: {s['title']}")
+        st.markdown(
+            f'<div class="lng-slide-title">Slide {s["num"]}: {html.escape(s["title"])}</div>',
+            unsafe_allow_html=True,
+        )
         render_body(s["body"])
-        st.divider()
+
+    render_footer(filename)
 
 
 def render_overview():
-    st.title("LNG SPA Economic Terms Comparison")
-    st.caption(
-        "Economic comparison of LNG Sale and Purchase Agreements — not a legal blackline. "
-        "Redacted terms (`[***]`) are never inferred."
+    st.markdown('<div class="lng-hero-title">LNG SPA Economic Terms Comparison</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="lng-hero-subtitle">Economic comparison of LNG Sale and Purchase Agreements — '
+        "not a legal blackline. Redacted terms (<code>[***]</code>) are never inferred.</div>",
+        unsafe_allow_html=True,
     )
 
+    legend = " &nbsp; ".join(rag_pill_html(k) for k in ["GREEN", "AMBER", "RED", "NO RAG"])
+    st.markdown(legend, unsafe_allow_html=True)
+    st.write("")
+
     counts = {label: count_rag(load_text(fn)) for label, fn in COMPARISONS.items()}
-    chart_df = pd.DataFrame(counts).T
-    st.subheader("RAG rating distribution")
-    st.bar_chart(chart_df)
+    chart_df = (
+        pd.DataFrame(counts)
+        .T.reset_index()
+        .rename(columns={"index": "Comparison"})
+        .melt(id_vars="Comparison", var_name="RAG", value_name="Mentions")
+    )
+    color_scale = alt.Scale(
+        domain=["RED", "AMBER", "GREEN", "NO RAG"],
+        range=[RAG_TEXT["RED"], RAG_TEXT["AMBER"], RAG_TEXT["GREEN"], RAG_TEXT["NO RAG"]],
+    )
+    chart = (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("Comparison:N", title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("Mentions:Q"),
+            color=alt.Color("RAG:N", scale=color_scale, legend=alt.Legend(title=None)),
+            xOffset="RAG:N",
+            tooltip=["Comparison", "RAG", "Mentions"],
+        )
+        .properties(height=320)
+    )
+    st.altair_chart(chart, use_container_width=True)
 
-    st.subheader("Comparisons available")
-    for label, fn in COMPARISONS.items():
-        with st.expander(label):
-            intro, slides = parse_slides(load_text(fn))
-            st.markdown(intro)
-            st.caption(f"{len(slides)} slides — select this comparison from the sidebar to explore.")
+    st.markdown('<div class="lng-slide-title">Comparisons available</div>', unsafe_allow_html=True)
+    cols = st.columns(len(COMPARISONS))
+    for col, (label, fn) in zip(cols, COMPARISONS.items()):
+        _, slides = parse_slides(load_text(fn))
+        with col:
+            st.markdown(
+                f'<div class="lng-card"><h4>{html.escape(label)}</h4>'
+                f"<p style='color:{SLATE};'>{html.escape(COMPARISON_BLURBS[label])}</p>"
+                f"<p style='color:{MUTED};font-size:0.85rem;'>{len(slides)} slides</p></div>",
+                unsafe_allow_html=True,
+            )
 
-    st.subheader("Source contracts in this repo")
+    st.write("")
+    st.markdown('<div class="lng-slide-title">Source contracts in this repo</div>', unsafe_allow_html=True)
     st.write(", ".join(f"`{f}`" for f in list_contract_files() if f not in COMPARISONS.values()))
 
 
 def render_browse_contracts():
-    st.title("Browse source contracts")
+    st.markdown('<div class="lng-hero-title">Browse source contracts</div>', unsafe_allow_html=True)
     files = [f for f in list_contract_files() if f not in COMPARISONS.values()]
     choice = st.selectbox("Contract", files)
     text = load_text(choice)
@@ -184,6 +302,8 @@ def render_browse_contracts():
 
 def main():
     st.set_page_config(page_title="LNG SPA Contract Comparison", layout="wide")
+    st.markdown(CSS, unsafe_allow_html=True)
+
     pages = ["Overview", *COMPARISONS.keys(), "Browse source contracts"]
     page = st.sidebar.radio("View", pages)
 

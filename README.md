@@ -11,7 +11,35 @@ for browsing the comparisons interactively.
     (Vitol, Gunvor, Shell SPA1/SPA2)
   - `cheniere_sabine_pass_spa_standalone_economic_terms.md` — Cheniere Sabine Pass
     (BG, Gas Natural Fenosa, GAIL, Total)
+- `pptx/` — the two source decks. The app displays these slide-for-slide (via `slide_images/`)
+  and offers them for download.
+- `slide_images/driftwood/`, `slide_images/sabine_pass/` — each deck's slides pre-rendered to
+  PNG by PowerPoint, so the app shows the real slides pixel-for-pixel rather than a
+  reconstruction.
 - `app.py` — Streamlit app for browsing, filtering, and searching the comparisons.
+- `scripts/` — asset pipeline (Windows + PowerPoint required to regenerate):
+  - `build_sabine_deck.py` — authors the Cheniere Sabine Pass deck from scratch in the same
+    visual format as the Driftwood deck (see note below), plus extra slides for Cheniere-only
+    economics (price architecture, UFC/MSC, embedded Xy, cancellation/suspension mechanics).
+  - `extract_sabine_markdown.py` — regenerates `contracts/cheniere_sabine_pass_...md` from the
+    built deck, so the app's search/text view stays in sync.
+  - `export_slides.py` — copies both decks into `pptx/` and exports every slide to
+    `slide_images/` via PowerPoint COM automation.
+
+  Run in order after editing `build_sabine_deck.py`:
+  ```bash
+  python scripts/build_sabine_deck.py
+  python scripts/extract_sabine_markdown.py
+  python scripts/export_slides.py
+  ```
+
+  **Why the Sabine Pass deck is built, not just converted:** the original source file's native
+  PowerPoint tables are encoded in a way real PowerPoint refuses to open ("PowerPoint could not
+  open the file"), even though python-pptx, LibreOffice, and Google Slides all read it fine.
+  Rather than ship a deck the user's own PowerPoint can't open, `build_sabine_deck.py`
+  reproduces the Driftwood deck's exact design system (colors, fonts, table/card/badge layouts,
+  extracted via `python-pptx`) and re-authors the Cheniere content on top of it as plain shapes
+  instead of native tables.
 
 ## Run locally
 

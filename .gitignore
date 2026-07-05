@@ -5,6 +5,7 @@ venv/
 .streamlit/secrets.toml
 *.pdf
 *.pptx
+!pptx/*.pptx
 .DS_Store
 Thumbs.db
 .claude/

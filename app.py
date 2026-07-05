@@ -8,10 +8,22 @@ import streamlit as st
 
 ROOT = Path(__file__).parent
 CONTRACTS_DIR = ROOT / "contracts"
+SLIDE_IMAGES_DIR = ROOT / "slide_images"
+PPTX_DIR = ROOT / "pptx"
 
 COMPARISONS = {
     "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.md",
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "cheniere_sabine_pass_spa_standalone_economic_terms.md",
+}
+
+COMPARISON_IMAGE_KEYS = {
+    "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood",
+    "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "sabine_pass",
+}
+
+COMPARISON_PPTX = {
+    "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.pptx",
+    "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "cheniere_sabine_pass_spa_standalone_economic_terms.pptx",
 }
 
 COMPARISON_BLURBS = {
@@ -93,6 +105,16 @@ def load_text(filename: str) -> str:
 @st.cache_data
 def list_contract_files():
     return sorted(p.name for p in CONTRACTS_DIR.glob("*.md"))
+
+
+@st.cache_data
+def list_slide_images(image_key: str):
+    return sorted((SLIDE_IMAGES_DIR / image_key).glob("slide-*.png"))
+
+
+@st.cache_data
+def load_pptx_bytes(filename: str) -> bytes:
+    return (PPTX_DIR / filename).read_bytes()
 
 
 def parse_slides(text: str):
@@ -193,15 +215,21 @@ def render_footer(doc_name: str):
 
 def render_comparison_page(label: str, filename: str):
     text = load_text(filename)
-    intro, slides = parse_slides(text)
+    _, slides = parse_slides(text)
+    images = list_slide_images(COMPARISON_IMAGE_KEYS[label])
+    pptx_name = COMPARISON_PPTX[label]
 
     search = st.sidebar.text_input("Search this comparison", "", key=f"search_{filename}")
     slide_titles = [f"Slide {s['num']}: {s['title']}" for s in slides]
     jump = st.sidebar.selectbox("Jump to slide", ["(show all)"] + slide_titles, key=f"jump_{filename}")
 
     st.markdown(f'<div class="lng-hero-title">{html.escape(label)}</div>', unsafe_allow_html=True)
-    if intro:
-        render_text_block(intro)
+    st.download_button(
+        "Download original .pptx",
+        load_pptx_bytes(pptx_name),
+        file_name=pptx_name,
+        key=f"dl_{filename}",
+    )
 
     filtered = slides
     if search:
@@ -217,11 +245,17 @@ def render_comparison_page(label: str, filename: str):
         return
 
     for s in filtered:
+        idx = int(s["num"]) - 1
         st.markdown(
-            f'<div class="lng-slide-title">Slide {s["num"]}: {html.escape(s["title"])}</div>',
+            f'<div class="lng-slide-title">Slide {s["num"]} of {len(slides)}: {html.escape(s["title"])}</div>',
             unsafe_allow_html=True,
         )
-        render_body(s["body"])
+        if 0 <= idx < len(images):
+            st.image(str(images[idx]), use_container_width=True)
+        else:
+            st.warning("Slide image not found — run scripts/export_slides.py to regenerate.")
+        with st.expander("View extracted text"):
+            render_body(s["body"])
 
     render_footer(filename)
 
@@ -267,7 +301,10 @@ def render_overview():
     cols = st.columns(len(COMPARISONS))
     for col, (label, fn) in zip(cols, COMPARISONS.items()):
         _, slides = parse_slides(load_text(fn))
+        images = list_slide_images(COMPARISON_IMAGE_KEYS[label])
         with col:
+            if images:
+                st.image(str(images[0]), use_container_width=True)
             st.markdown(
                 f'<div class="lng-card"><h4>{html.escape(label)}</h4>'
                 f"<p style='color:{SLATE};'>{html.escape(COMPARISON_BLURBS[label])}</p>"

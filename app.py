@@ -6,6 +6,15 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from checklist_data import (
+    CATEGORIES as CHECKLIST_CATEGORIES,
+    CONTRACTS as CHECKLIST_CONTRACTS,
+    HOLDER as HOLDER_INPUTS,
+    ROWS as CHECKLIST_ROWS,
+    hg as hedgeability,
+    tt as term_type,
+)
+
 ROOT = Path(__file__).parent
 CONTRACTS_DIR = ROOT / "contracts"
 SLIDE_IMAGES_DIR = ROOT / "slide_images"
@@ -162,7 +171,7 @@ def md_table_to_df(block_text: str):
 
 
 def render_table_html(df: pd.DataFrame):
-    rag_cols = [c for c in df.columns if c.strip().upper() == "RAG"]
+    rag_cols = [c for c in df.columns if c.strip().upper().startswith("RAG")]
     parts = ['<table class="lng-table"><thead><tr>']
     for col in df.columns:
         parts.append(f"<th>{html.escape(str(col))}</th>")
@@ -337,15 +346,202 @@ def render_browse_contracts():
             st.markdown(text)
 
 
+# --- Value-item checklist ---------------------------------------------------
+
+CHECKLIST_STATUS = ["Extracted", "Redacted", "Not found", "Not reviewed", "N/A"]
+CHECKLIST_RAG_OPTIONS = ["RED", "AMBER", "GREEN", "N/A"]
+CHECKLIST_ITEM_COLS = ["ID", "Category", "Value item", "What to record", "Typical clause",
+                       "Why it matters", "Term type", "Hedgeability"]
+CHECKLIST_WORK_COLS = ["Status", "Value found", "Clause ref", "RAG", "Notes"]
+
+
+@st.cache_data
+def checklist_items_df():
+    return pd.DataFrame(
+        [
+            {
+                "ID": t[0], "Category": t[1], "Value item": t[2], "What to record": t[3],
+                "Typical clause": t[4], "Why it matters": t[5],
+                "Term type": term_type(t[0]), "Hedgeability": hedgeability(t[0]),
+            }
+            for t in CHECKLIST_ROWS
+        ]
+    )
+
+
+@st.cache_data
+def checklist_matrix_df():
+    df = checklist_items_df().copy()
+    for i, name in enumerate(CHECKLIST_CONTRACTS):
+        df[name] = [t[8 + i] for t in CHECKLIST_ROWS]
+    df["RAG Cheniere"] = [t[6] or "-" for t in CHECKLIST_ROWS]
+    df["RAG Driftwood"] = [t[7] or "-" for t in CHECKLIST_ROWS]
+    return df
+
+
+def render_checklist_work_tab(items: pd.DataFrame, matrix: pd.DataFrame):
+    left, right = st.columns([2, 3])
+    with left:
+        contract = st.selectbox("Contract", ["(new contract)"] + CHECKLIST_CONTRACTS)
+    with right:
+        cats = st.multiselect("Filter categories", CHECKLIST_CATEGORIES, default=[])
+
+    work = items.copy()
+    work["Status"] = ""
+    work["Value found"] = matrix[contract] if contract != "(new contract)" else ""
+    work["Clause ref"] = ""
+    work["RAG"] = ""
+    work["Notes"] = ""
+    if cats:
+        work = work[work["Category"].isin(cats)]
+
+    uploaded = st.file_uploader("Resume from a saved checklist CSV (optional)", type="csv", key=f"up_{contract}")
+    if uploaded is not None:
+        try:
+            saved = pd.read_csv(uploaded, dtype=str).fillna("")
+            if "ID" in saved.columns:
+                keep = [c for c in CHECKLIST_WORK_COLS if c in saved.columns]
+                work = (
+                    work.drop(columns=keep)
+                    .merge(saved[["ID"] + keep], on="ID", how="left")
+                    .fillna("")
+                )
+            else:
+                st.warning("CSV has no ID column; ignored.")
+        except Exception as exc:
+            st.warning(f"Could not read CSV: {exc}")
+
+    edited = st.data_editor(
+        work,
+        column_config={
+            "Status": st.column_config.SelectboxColumn("Status", options=CHECKLIST_STATUS, required=False),
+            "RAG": st.column_config.SelectboxColumn("RAG", options=CHECKLIST_RAG_OPTIONS, required=False),
+            "Value found": st.column_config.TextColumn("Value found", width="large"),
+        },
+        disabled=CHECKLIST_ITEM_COLS,
+        hide_index=True,
+        use_container_width=True,
+        height=560,
+        key=f"checklist_editor_{contract}_{'-'.join(sorted(cats))}",
+    )
+    done = int((edited["Status"].fillna("") != "").sum())
+    st.progress(done / len(edited) if len(edited) else 0.0, text=f"{done} of {len(edited)} items have a status")
+    st.download_button(
+        "Download checklist as CSV",
+        edited.to_csv(index=False).encode("utf-8"),
+        file_name=f"checklist_{contract.replace(' ', '_').strip('()')}.csv",
+        key=f"dl_checklist_{contract}",
+    )
+    st.caption(
+        "Status codes: Extracted = value recorded from the text; Redacted = clause found, number hidden; "
+        "Not found = searched, absent; Not reviewed = not yet checked; N/A = structurally inapplicable. "
+        "Never guess a redacted number."
+    )
+
+
+def render_checklist_matrix_tab(matrix: pd.DataFrame):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        cats = st.multiselect("Category", CHECKLIST_CATEGORIES, default=[], key="mx_cats")
+    with c2:
+        types = st.multiselect("Term type", sorted(matrix["Term type"].unique()), default=[], key="mx_types")
+    with c3:
+        hedges = st.multiselect("Hedgeability", sorted(matrix["Hedgeability"].unique()), default=[], key="mx_hedge")
+    contracts = st.multiselect("Contracts", CHECKLIST_CONTRACTS, default=CHECKLIST_CONTRACTS, key="mx_contracts")
+    query = st.text_input("Search items and values", "", key="mx_search")
+
+    df = matrix.copy()
+    if cats:
+        df = df[df["Category"].isin(cats)]
+    if types:
+        df = df[df["Term type"].isin(types)]
+    if hedges:
+        df = df[df["Hedgeability"].isin(hedges)]
+    if query:
+        ql = query.lower()
+        df = df[df.apply(lambda r: ql in " ".join(str(v) for v in r.values).lower(), axis=1)]
+
+    show_cols = ["ID", "Value item", "Term type", "Hedgeability"] + contracts + ["RAG Cheniere", "RAG Driftwood"]
+    st.caption(
+        f"{len(df)} of {len(matrix)} items. Pre-filled from the two source decks only; "
+        "redacted values ([***]) are never inferred."
+    )
+    st.markdown(render_table_html(df[show_cols]), unsafe_allow_html=True)
+    st.download_button(
+        "Download matrix as CSV",
+        df[show_cols].to_csv(index=False).encode("utf-8"),
+        file_name="checklist_matrix.csv",
+        key="dl_matrix",
+    )
+
+
+def render_checklist_holder_tab():
+    st.markdown(
+        f"<p style='color:{SLATE};'>Holder-side valuation inputs. These are <b>not</b> contract terms; "
+        "they complete the valuation identity V = &Sigma; D(0,t) &times; E[(P<sub>use</sub> &minus; "
+        "P<sub>contract</sub>) &times; Q<sub>lift</sub> &minus; costs]. "
+        "Keep them separate from extracted contract facts.</p>",
+        unsafe_allow_html=True,
+    )
+    df = pd.DataFrame(HOLDER_INPUTS, columns=["Input", "What to record", "Typical source", "Why it matters for value"])
+    st.markdown(render_table_html(df), unsafe_allow_html=True)
+
+
+def render_checklist_page():
+    st.markdown('<div class="lng-hero-title">LNG SPA value-item checklist</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="lng-hero-subtitle">85 value items across ten categories: price, start, end, '
+        "yearly flexibilities, optionalities, plus the supporting terms that change their value. "
+        "Cash-flow rows feed static DCF; Option rows require option-adjusted valuation; "
+        "Residual rows go on the basis-risk register.</div>",
+        unsafe_allow_html=True,
+    )
+    items = checklist_items_df()
+    matrix = checklist_matrix_df()
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Value items", len(items))
+    m2.metric("Option terms", int((items["Term type"] == "Option").sum()))
+    m3.metric("Cash-flow terms", int((items["Term type"] == "Cash-flow").sum()))
+    m4.metric("Residual-risk items", int((items["Hedgeability"] == "Residual").sum()))
+
+    with st.expander("Checklist composition"):
+        comp = items.groupby(["Category", "Term type"]).size().reset_index(name="Items")
+        chart = (
+            alt.Chart(comp)
+            .mark_bar()
+            .encode(
+                x=alt.X("Items:Q"),
+                y=alt.Y("Category:N", sort=CHECKLIST_CATEGORIES, title=None),
+                color=alt.Color("Term type:N", legend=alt.Legend(title=None)),
+                tooltip=["Category", "Term type", "Items"],
+            )
+            .properties(height=280)
+        )
+        st.altair_chart(chart, use_container_width=True)
+
+    tab_work, tab_matrix, tab_holder = st.tabs(["Work a contract", "Matrix (8 contracts)", "Holder inputs"])
+    with tab_work:
+        render_checklist_work_tab(items, matrix)
+    with tab_matrix:
+        render_checklist_matrix_tab(matrix)
+    with tab_holder:
+        render_checklist_holder_tab()
+
+    render_footer("checklist_data.py / LNG_SPA_value_item_checklist.md")
+
+
 def main():
     st.set_page_config(page_title="LNG SPA Contract Comparison", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
 
-    pages = ["Overview", *COMPARISONS.keys(), "Browse source contracts"]
+    pages = ["Overview", *COMPARISONS.keys(), "Value-item checklist", "Browse source contracts"]
     page = st.sidebar.radio("View", pages)
 
     if page == "Overview":
         render_overview()
+    elif page == "Value-item checklist":
+        render_checklist_page()
     elif page == "Browse source contracts":
         render_browse_contracts()
     else:

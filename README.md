@@ -5,14 +5,17 @@ for browsing the comparisons interactively.
 
 ## Contents
 
-- `contracts/` — full-text Markdown conversions of the underlying SPAs, plus two
+- `contracts/` — full-text Markdown conversions of the underlying SPAs, plus three
   economic-terms comparison decks converted to Markdown:
   - `driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.md` — Driftwood LNG
     (Vitol, Gunvor, Shell SPA1/SPA2)
   - `cheniere_sabine_pass_spa_standalone_economic_terms.md` — Cheniere Sabine Pass
     (BG, Gas Natural Fenosa, GAIL, Total)
-- `pptx/` — the two source decks. The app displays these slide-for-slide (via `slide_images/`)
-  and offers them for download.
+  - `cheniere_followon_gdf_spa_economic_terms.md` — Cheniere follow-on & GdF
+    (BG Gulf Coast A&R, Centrica, GNF Corpus Christi, Woodside, GdF Master Ex-Ship)
+- `pptx/` — the source decks. The app displays these slide-for-slide (via `slide_images/`)
+  and offers them for download. Where a deck's PNGs have not been exported yet, the app
+  falls back to rendering the extracted slide text directly.
 - `slide_images/driftwood/`, `slide_images/sabine_pass/` — each deck's slides pre-rendered to
   PNG by PowerPoint, so the app shows the real slides pixel-for-pixel rather than a
   reconstruction.
@@ -21,6 +24,10 @@ for browsing the comparisons interactively.
   - `build_sabine_deck.py` — authors the Cheniere Sabine Pass deck from scratch in the same
     visual format as the Driftwood deck (see note below), plus extra slides for Cheniere-only
     economics (price architecture, UFC/MSC, embedded Xy, cancellation/suspension mechanics).
+  - `build_followon_deck.py` — authors the Cheniere follow-on & GdF deck (BG Gulf Coast A&R,
+    Centrica, GNF Corpus Christi, Woodside, GdF Master Ex-Ship) in the same visual format.
+    Runs anywhere python-pptx is installed; title arcs are copied from the Driftwood deck when
+    present, else approximated.
   - `extract_sabine_markdown.py` — regenerates `contracts/cheniere_sabine_pass_...md` from the
     built deck, so the app's search/text view stays in sync.
   - `export_slides.py` — copies both decks into `pptx/` and exports every slide to

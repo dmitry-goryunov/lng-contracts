@@ -2,3 +2,4 @@ streamlit>=1.32
 pandas>=2.0
 altair>=5
 openpyxl>=3.1  # only needed for scripts/build_checklist_workbook.py
+python-pptx>=0.6.23  # only needed for scripts/build_*_deck.py and extract scripts

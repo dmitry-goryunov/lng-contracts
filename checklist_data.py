@@ -1,9 +1,16 @@
 """LNG SPA value-item checklist: single source of truth.
 
-Generated from the two comparison decks in this repo plus improvements from
+Generated from the three comparison decks in this repo plus improvements from
 'LNG Contract Valuation and Hedging.docx' (5 Jul 2026). Used by app.py and by
 scripts/build_checklist_workbook.py. Pre-filled values come only from the decks;
 redacted values are shown as [***] and must never be guessed.
+
+The first eight contract columns (BG, GNF, GAIL, Total, Vitol, Gunvor, Shell
+SPA1/SPA2) live inline in the base tuples. The five follow-on columns (BG Gulf
+Coast A&R, Centrica, GNF Corpus Christi, Woodside, GdF master) are appended at
+load time from FOLLOWON below, sourced from the follow-on deck
+(cheniere_followon_gdf_spa_economic_terms.pptx); rows the deck does not cover
+default to "Not reviewed in deck".
 """
 
 NRD = "Not reviewed in deck"
@@ -284,6 +291,119 @@ a("J6", CAT_J, "Confidentiality", "Scope", "Confidentiality article", "Limits in
   None, "AMBER", NRD, NRD, NRD, NRD,
   "Mental-impressions wording identified", "To blackline", "To blackline", "To blackline")
 
+# --- Follow-on contracts (deck: cheniere_followon_gdf_spa_economic_terms.pptx) ---
+# Column order: BG Gulf Coast A&R (SPL), Centrica (SPL), GNF (CCL), Woodside (CCL), GdF (Master, DES).
+# Values come only from that deck; anything it does not cover defaults to NRD.
+FOLLOWON = {
+    "A1": ("Sabine Pass Liquefaction, LLC", "Sabine Pass Liquefaction, LLC",
+           "Corpus Christi Liquefaction, LLC", "Corpus Christi Liquefaction, LLC",
+           "Per Specific Order (SO1: GDF International Trading sells)"),
+    "A2": ("BG Gulf Coast LNG, LLC", "Centrica plc", "Gas Natural Fenosa LNG SL",
+           "Woodside Energy Trading Singapore Pte Ltd",
+           "Per Specific Order (SO1: Cheniere Marketing, Inc. buys)"),
+    "A3": ("Buyer-specific mechanics; not extracted in deck",
+           "Parent guaranty (Exhibit C) on merger / asset sale; Centrica plc itself is Buyer",
+           "15.3 credit support clause; details not extracted",
+           "15.3 credit support clause; details not extracted",
+           "Assignment to banks >= US$1bn assets allowed for financing"),
+    "A4": ("25 Jan 2012 (amends the 25 Oct 2011 BG SPA)", "22 Mar 2013", "2 Jun 2014",
+           "30 Jun 2014", "26 Apr 2007"),
+    "A7": ("Four-train structure; per-train FID/DFCD tranche cancellation rights (4.6)",
+           "Single-train linkage; DFCD windows", "Single-train linkage", "Single-train linkage",
+           "SO1 lot 1: mutual cancellation right to 29 Feb 2008"),
+    "A8": ("Amends and restates the 25 Oct 2011 BG SPA", NRD, NRD, NRD,
+           "GDF Transatlantic Option Agreement (term linkage)"),
+    "B1": ("Train 1 DFCD", "DFCD", "DFCD", "DFCD", "Per Specific Order (Arrival Periods)"),
+    "B4": ("ACQ steps up at each Train DFCD (tranche build)", NRD, NRD, NRD, "n/a"),
+    "C1": ("20 years from Train 1 DFCD", "20 years from DFCD", "20 years from DFCD",
+           "20 years from DFCD", "Through the GDF Transatlantic Option Agreement period, then evergreen"),
+    "C3": ("Up to 10 years, any portion of ACQ; per-tranche reductions allowed",
+           "Up to 10 years, any portion of ACQ", "Up to 10 years, any portion of ACQ",
+           "Up to 10 years, any portion of ACQ", "n/a; 30-day notice termination after primary term"),
+    "C4": ("Buyer elects; deadline not extracted in deck",
+           "Buyer elects; notice by 17th anniversary of DFCD",
+           "Buyer elects; notice by 17th anniversary of DFCD",
+           "Buyer elects; notice by 17th anniversary of DFCD", "n/a"),
+    "C6": ("UFC Base 1.9125 up to 182.5m MMBtu; blended to 2.6625 above",
+           "Not extracted", "Not extracted", "Not extracted", "n/a"),
+    "D1": ("286.5m MMBtu/yr at full build = 182.5m T1 + 36.5m T2 + 34.0m T3 + 33.5m T4",
+           "91.25m MMBtu/yr", "78.215m MMBtu/yr", "44.12m MMBtu/yr",
+           "Per Specific Order; SO1: 7 cargoes x 2.6-3.5m MMBtu"),
+    "D2": ("Train tranches T1-T4; MACQ steps by train", "Single annual quantity",
+           "Single annual quantity", "Single annual quantity", "Per-cargo lots per Specific Order"),
+    "D3": ("Even and ratable ADP", "Even and ratable ADP", "Even and ratable ADP",
+           "Even and ratable ADP", "SO1: one cargo per month, Apr-Oct 2008"),
+    "D6": ("6%/yr of then-applicable ACQ; cumulative caps step 54.75m-83.25m MMBtu by train stage",
+           "6%/yr; 30% initial term", "7.5%/yr; 25% over any 6 consecutive years",
+           "7.5%/yr; 25% over any 6 consecutive years", "n/a"),
+    "D7": ("Per-train absolute inspection caps: 15.15m / 4.56m / 2.83m / 5.58m MMBtu",
+           "8.3%/yr; 17% initial term", "None separate from major maintenance",
+           "None separate from major maintenance", "n/a"),
+    "D8": ("Cancellation Right (see F2)", "Suspension right (see F3)", "Suspension right (see F3)",
+           "Suspension right (see F3)", "None; seller-held cancellation options (SO1)"),
+    "E1": ("CSP + separate UFC / Monthly Sales Charge (multi-train)",
+           "Single CSP with embedded Xy", "Single CSP with embedded Xy",
+           "Single CSP with embedded Xy", "Flat per-order price (SO1)"),
+    "E2": ("Henry Hub", "Henry Hub", "Henry Hub", "Henry Hub", "Henry Hub (NYMEX prompt month)"),
+    "E3": ("1.15 x HH", "1.15 x HH", "1.15 x HH", "1.15 x HH", "94% x HH (SO1)"),
+    "E4": ("n/a in base CSP (fixed leg via UFC)", "n/a (fixed leg via Xy)",
+           "n/a (fixed leg via Xy)", "n/a (fixed leg via Xy)", "minus US$0.65/MMBtu (SO1)"),
+    "E6": ("UFCm = Base + 0.3375 x CPIy/CPI0; Base 1.9125 / 2.0375 / 2.1215 / 2.1848 by train; MSC = UFC x Q/12",
+           "Xy = (0.885 + 0.115 x CPI(y-1)/CPI0) x X0; X0 = US$3.00/MMBtu",
+           "Xy = (0.86 + 0.14 x CPI(y-1)/CPI0) x X0; X0 = US$3.50/MMBtu",
+           "Xy = (0.885 + 0.115 x CPI(y-1)/CPI0) x X0; X0 = US$3.50/MMBtu", "None"),
+    "E7": ("Additive 0.3375 CPI term; CPI0 = 12-month average pre Train 1 DFCD",
+           "11.5% weight; CPI0 = calendar year third SPL train becomes capable",
+           "14% weight; CPI0 = calendar 2017", "11.5% weight; CPI0 = calendar 2014", "None"),
+    "E8": ("n/a (USD Henry Hub)", "n/a (USD Henry Hub)", "n/a (USD Henry Hub)", "n/a (USD Henry Hub)",
+           "Currency per Specific Order; interest at Euribor (EUR) / Libor (USD)"),
+    "E12": (NRD, NRD, NRD, NRD, "2% over Euribor / Libor, 365-day year"),
+    "F1": ("Up to 10y extension; tranche reductions", "Up to 10y extension", "Up to 10y extension",
+           "Up to 10y extension", "None found"),
+    "F2": ("Cancellation Right (5.6): no fee; MSC continues", "n/a; suspension mechanism instead",
+           "n/a; suspension mechanism instead", "n/a; suspension mechanism instead",
+           "Seller cancellation options with fees (SO1)"),
+    "F3": ("None identified in deck",
+           "Suspension (5.7): min 1 month, 2-month notice; Fee = Xy x sum of SCQ",
+           "Suspension (5.7): Fee = Xy x sum of SCQ", "Suspension (5.7): Fee = Xy x sum of SCQ", "n/a"),
+    "F4": ("Yes: MSC continues on cancellation; reduced prospectively under FM",
+           "Xy recovered via Suspension Fee during suspension",
+           "Xy recovered via Suspension Fee", "Xy recovered via Suspension Fee",
+           "n/a (no separate fixed leg)"),
+    "F9": ("n/a; single SPA spans Trains 1-4 via tranches", "n/a", "n/a", "n/a",
+           "Master + Specific Orders framework"),
+    "G2": ("CSP-based; late cancellation becomes Cargo Shortfall; MSC unaffected",
+           "Cover Damages, CSP-based", "Cover Damages, CSP-based", "Cover Damages, CSP-based",
+           "n/a in same form"),
+    "G3": ("Cargo DoP = replacement price minus (CSP - UFC) plus costs; MSC still payable",
+           "Cargo DoP priced off CSP", "Cargo DoP priced off CSP", "Cargo DoP priced off CSP",
+           "Underdelivery = NQ x max(4-day HH avg - 80% x P, US$1.00)"),
+    "G4": ("CSP minus UFC", "CSP", "CSP", "CSP", "HH cover difference vs 80% of P (SO1)"),
+    "G6": ("MSC reduced prospectively in proportion to FM quantities", "Not extracted",
+           "Not extracted", "Not extracted", "Not extracted"),
+    "H1": ("Buyer-specific mechanics; not extracted in deck",
+           "Parent guaranty (Exhibit C) on merger / asset sale",
+           "15.3 credit support clause; details not extracted",
+           "15.3 credit support clause; details not extracted",
+           "Assignment to banks >= US$1bn assets allowed for financing"),
+    "H4": ("USD 600m / 720m / 832m / 942m by Train FID (pre-5th anniv.); 2 x ACQ figure after",
+           "USD 300m pre-5th anniv.; USD 400m after", "USD 257.145m; USD 342.86m after",
+           "USD 145.052m; USD 193.402m after", "Not extracted"),
+    "I1": ("FOB Sabine Pass Facility", "FOB Sabine Pass Facility", "FOB Corpus Christi Facility",
+           "FOB Corpus Christi Facility", "DES discharge terminal (SO1: Sabine Pass Terminal)"),
+    "I2": ("At FOB delivery point", "At FOB delivery point", "At FOB delivery point",
+           "At FOB delivery point",
+           "At delivery point on unloading (DES); vapour return passes buyer to seller"),
+    "I3": ("Buyer provides tankers", "Buyer provides tankers", "Buyer provides tankers",
+           "Buyer provides tankers",
+           "Seller nominates ship from SO1 list; heel and loading port by 1st of prior month"),
+    "I4": (NRD, NRD, NRD, NRD, "Laytime 36h up to 145,000 m3; demurrage US$100,000/24h prorated"),
+    "J1": ("Cargo invoices + monthly MSC invoices",
+           "Cargo invoices; Suspension Fees invoiced monthly when applicable", "Same", "Same",
+           "20 Business Days; disputed invoices paid 100% provisionally"),
+    "J3": (NRD, NRD, NRD, NRD, "Letter agreement under England & Wales law; ICC expert determination"),
+}
+
 # Term type: Cash-flow (base DCF strip) / Option (option-adjusted treatment) / Risk-structural / Context
 TT = {}
 for k in ["A1","A2","A3","A4","A5","A7","A8","B1","C2","I2","I6","J6"]: TT[k] = "Context"
@@ -315,9 +435,11 @@ HOLDER = [
     ("Volatility, correlation, seasonality", "HH-TTF-JKM-Brent-freight vols and correlations; de-seasonalised mean reversion", "Exchange settlement histories", "Calibration for option-adjusted valuation; price the forward curve correctly first"),
 ]
 
-ROWS = R
+ROWS = [t + FOLLOWON.get(t[0], (NRD,) * 5) for t in R]
 FIELDS = ["id", "category", "item", "record", "clause", "why", "rag_cheniere", "rag_driftwood",
-          "bg", "gnf", "gail", "total", "vitol", "gunvor", "shell_spa1", "shell_spa2"]
+          "bg", "gnf", "gail", "total", "vitol", "gunvor", "shell_spa1", "shell_spa2",
+          "bg_gc_ar", "centrica", "gnf_cc", "woodside", "gdf_master"]
 CONTRACTS = ["BG (SPL)", "Gas Natural Fenosa (SPL)", "GAIL (SPL)", "Total (SPL)",
-             "Vitol (DWL)", "Gunvor (DWL)", "Shell SPA1 JKM (DWL)", "Shell SPA2 TTF (DWL)"]
+             "Vitol (DWL)", "Gunvor (DWL)", "Shell SPA1 JKM (DWL)", "Shell SPA2 TTF (DWL)",
+             "BG-GC A&R (SPL)", "Centrica (SPL)", "GNF (CCL)", "Woodside (CCL)", "GdF (Master, DES)"]
 CATEGORIES = list(dict.fromkeys(t[1] for t in ROWS))

@@ -23,16 +23,19 @@ PPTX_DIR = ROOT / "pptx"
 COMPARISONS = {
     "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.md",
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "cheniere_sabine_pass_spa_standalone_economic_terms.md",
+    "Cheniere follow-on & GdF — BG A&R / Centrica / GNF-CC / Woodside / GdF": "cheniere_followon_gdf_spa_economic_terms.md",
 }
 
 COMPARISON_IMAGE_KEYS = {
     "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood",
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "sabine_pass",
+    "Cheniere follow-on & GdF — BG A&R / Centrica / GNF-CC / Woodside / GdF": "followon_gdf",
 }
 
 COMPARISON_PPTX = {
     "Driftwood LNG — Vitol / Gunvor / Shell": "driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.pptx",
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": "cheniere_sabine_pass_spa_standalone_economic_terms.pptx",
+    "Cheniere follow-on & GdF — BG A&R / Centrica / GNF-CC / Woodside / GdF": "cheniere_followon_gdf_spa_economic_terms.pptx",
 }
 
 COMPARISON_BLURBS = {
@@ -41,6 +44,10 @@ COMPARISON_BLURBS = {
     ),
     "Cheniere Sabine Pass — BG / GNF / GAIL / Total": (
         "BG, Gas Natural Fenosa, GAIL, Total — standalone economic-term comparison and valuation fields."
+    ),
+    "Cheniere follow-on & GdF — BG A&R / Centrica / GNF-CC / Woodside / GdF": (
+        "BG Gulf Coast A&R, Centrica, GNF Corpus Christi, Woodside, GdF Master Ex-Ship — "
+        "the five remaining contracts, same economic-terms treatment."
     ),
 }
 
@@ -233,12 +240,15 @@ def render_comparison_page(label: str, filename: str):
     jump = st.sidebar.selectbox("Jump to slide", ["(show all)"] + slide_titles, key=f"jump_{filename}")
 
     st.markdown(f'<div class="lng-hero-title">{html.escape(label)}</div>', unsafe_allow_html=True)
-    st.download_button(
-        "Download original .pptx",
-        load_pptx_bytes(pptx_name),
-        file_name=pptx_name,
-        key=f"dl_{filename}",
-    )
+    if (PPTX_DIR / pptx_name).exists():
+        st.download_button(
+            "Download original .pptx",
+            load_pptx_bytes(pptx_name),
+            file_name=pptx_name,
+            key=f"dl_{filename}",
+        )
+    else:
+        st.caption(f"Deck file `{pptx_name}` not found in `pptx/` — run the matching build script to generate it.")
 
     filtered = slides
     if search:
@@ -261,9 +271,11 @@ def render_comparison_page(label: str, filename: str):
         )
         if 0 <= idx < len(images):
             st.image(str(images[idx]), use_container_width=True)
+            with st.expander("View extracted text"):
+                render_body(s["body"])
         else:
-            st.warning("Slide image not found — run scripts/export_slides.py to regenerate.")
-        with st.expander("View extracted text"):
+            # No pre-rendered PNG for this deck yet (scripts/export_slides.py, Windows +
+            # PowerPoint) — render the extracted slide content directly instead.
             render_body(s["body"])
 
     render_footer(filename)
@@ -463,7 +475,7 @@ def render_checklist_matrix_tab(matrix: pd.DataFrame):
 
     show_cols = ["ID", "Value item", "Term type", "Hedgeability"] + contracts + ["RAG Cheniere", "RAG Driftwood"]
     st.caption(
-        f"{len(df)} of {len(matrix)} items. Pre-filled from the two source decks only; "
+        f"{len(df)} of {len(matrix)} items. Pre-filled from the three source decks only; "
         "redacted values ([***]) are never inferred."
     )
     st.markdown(render_table_html(df[show_cols]), unsafe_allow_html=True)
@@ -520,7 +532,9 @@ def render_checklist_page():
         )
         st.altair_chart(chart, use_container_width=True)
 
-    tab_work, tab_matrix, tab_holder = st.tabs(["Work a contract", "Matrix (8 contracts)", "Holder inputs"])
+    tab_work, tab_matrix, tab_holder = st.tabs(
+        ["Work a contract", f"Matrix ({len(CHECKLIST_CONTRACTS)} contracts)", "Holder inputs"]
+    )
     with tab_work:
         render_checklist_work_tab(items, matrix)
     with tab_matrix:

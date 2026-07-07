@@ -13,7 +13,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from checklist_data import R, tt, hg, HOLDER
+from checklist_data import R, ROWS, tt, hg, HOLDER
 
 OUT = Path(__file__).resolve().parents[1] / "LNG_SPA_value_item_checklist.xlsx"
 
@@ -49,7 +49,7 @@ readme = [
     ("Status codes", "Extracted = value recorded from the text. Redacted = clause found, number hidden. Not found = searched, absent. Not reviewed = not yet checked. N/A = structurally inapplicable."),
     ("RAG codes", "RED = visible economic difference. AMBER = similar framework, unresolved caveats. GREEN = no material difference detected. ACQ is a scale input, never RAG-scored."),
     ("Epistemic rules", "Never guess a redacted number; treat redacted constants as scenario inputs. Distinguish fact / inference / unknown. 'Not reviewed in deck' means the source decks did not cover the item, not that the contract lacks it."),
-    ("Sources", "Pre-filled Matrix entries come only from: cheniere_sabine_pass_spa_standalone_economic_terms.pptx and driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.pptx (this folder). Verify against the filed agreements before relying on any figure."),
+    ("Sources", "Pre-filled Matrix entries come only from: cheniere_sabine_pass_spa_standalone_economic_terms.pptx, driftwood_lng_spa_economic_terms_comparison_formula_signature_updated.pptx and cheniere_followon_gdf_spa_economic_terms.pptx (this folder). Verify against the filed agreements before relying on any figure."),
     ("Companion file", "LNG_SPA_value_item_checklist.md holds the methodology and the same checklist in portable form."),
     ("Term type", "Cash-flow = feeds the base DCF strip. Option = embedded optionality; requires option-adjusted valuation (Monte Carlo / LSMC / spread-option methods), not static DCF. Risk-structural = changes risk, credit or enforceability rather than the base strip. Context = identity and reference data."),
     ("Hedgeability", "Curve = hedgeable against liquid benchmarks (Brent, HH, TTF, JKM, FX, SOFR). Spread = hedgeable as a location, time or freight spread. Residual = imperfectly hedgeable; goes on the basis-risk register. Tags are indicative defaults; review per contract."),
@@ -103,23 +103,25 @@ for j, w in enumerate(widths, 1):
 ws.freeze_panes = "D4"
 
 # Matrix
-ws = wb.create_sheet("Matrix_8_contracts")
+ws = wb.create_sheet("Matrix_13_contracts")
 mcols = ["ID", "Category", "Value item", "Term type", "Hedgeability", "BG (SPL)", "Gas Natural Fenosa (SPL)", "GAIL (SPL)", "Total (SPL)",
-         "Vitol (DWL)", "Gunvor (DWL)", "Shell SPA1 JKM (DWL)", "Shell SPA2 TTF (DWL)", "RAG Cheniere set", "RAG Driftwood set"]
-ws.cell(row=1, column=1, value="Pre-filled from the two source decks only. 'Not reviewed in deck' = item not covered there. Redacted values shown as [***]; never guess them. Term-type and hedgeability tags are indicative defaults; review per contract. SPL = Sabine Pass Liquefaction; DWL = Driftwood LNG.").font = Font(name=ARIAL, size=9, italic=True)
-ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=15)
+         "Vitol (DWL)", "Gunvor (DWL)", "Shell SPA1 JKM (DWL)", "Shell SPA2 TTF (DWL)",
+         "BG-GC A&R (SPL)", "Centrica (SPL)", "GNF (CCL)", "Woodside (CCL)", "GdF (Master, DES)",
+         "RAG Cheniere set", "RAG Driftwood set"]
+ws.cell(row=1, column=1, value="Pre-filled from the three source decks only. 'Not reviewed in deck' = item not covered there. Redacted values shown as [***]; never guess them. Term-type and hedgeability tags are indicative defaults; review per contract. SPL = Sabine Pass Liquefaction; DWL = Driftwood LNG; CCL = Corpus Christi Liquefaction.").font = Font(name=ARIAL, size=9, italic=True)
+ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=20)
 for j, h in enumerate(mcols, 1):
     ws.cell(row=3, column=j, value=h)
 style_header(ws, 3, len(mcols))
 row = 4
-for t in R:
-    vals = [t[0], t[1], t[2], tt(t[0]), hg(t[0]), t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[6] or "-", t[7] or "-"]
+for t in ROWS:
+    vals = ([t[0], t[1], t[2], tt(t[0]), hg(t[0])] + list(t[8:21]) + [t[6] or "-", t[7] or "-"])
     for j, v in enumerate(vals, 1):
         cell = ws.cell(row=row, column=j, value=v)
         cell.font = Font(name=ARIAL, size=9)
         cell.alignment = WRAP
         cell.border = THIN
-    for j in (14, 15):
+    for j in (19, 20):
         v = ws.cell(row=row, column=j).value
         if v in RAG_FILL:
             ws.cell(row=row, column=j).fill = RAG_FILL[v]
@@ -128,11 +130,11 @@ for t in R:
         for j in range(1, 6):
             ws.cell(row=row, column=j).fill = CAT_FILL
     row += 1
-mw = [6, 22, 24, 12, 11, 26, 26, 26, 28, 30, 30, 30, 30, 11, 11]
+mw = [6, 22, 24, 12, 11, 26, 26, 26, 28, 30, 30, 30, 30, 30, 28, 28, 28, 30, 11, 11]
 for j, w in enumerate(mw, 1):
     ws.column_dimensions[get_column_letter(j)].width = w
 ws.freeze_panes = "D4"
-ws.auto_filter.ref = f"A3:O{row-1}"
+ws.auto_filter.ref = f"A3:T{row-1}"
 
 # Holder_Inputs
 ws = wb.create_sheet("Holder_Inputs")
